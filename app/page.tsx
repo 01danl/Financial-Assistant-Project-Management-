@@ -13,6 +13,30 @@ const EMPTY: AnalyzeInput = {
   expenses: Object.fromEntries(CATEGORIES.map((c) => [c, 0])) as Record<Category, number>,
 };
 
+/* ---------------- icons ---------------- */
+const P: Record<string, React.ReactNode> = {
+  play: <path d="M7 4.5v15l12-7.5z" />,
+  arrow: <path d="M5 12h14m-6-6 6 6-6 6" />,
+  shield: <><path d="M12 3 4.5 6v5.5c0 4.6 3.2 8.3 7.5 9.5 4.3-1.2 7.5-4.9 7.5-9.5V6z" /><path d="m9 12 2 2 4-4" /></>,
+  lock: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>,
+  spark: <path d="M12 3v4m0 10v4M3 12h4m10 0h4M6 6l2.5 2.5m7 7L18 18M6 18l2.5-2.5m7-7L18 6" />,
+  wallet: <><rect x="3" y="6" width="18" height="14" rx="2.5" /><path d="M3 10h18M16 15h2" /></>,
+  gauge: <><path d="M4 16a8 8 0 1 1 16 0" /><path d="m12 16 4-5" /></>,
+  trend: <><path d="M3 17 9 11l4 4 8-8" /><path d="M15 7h6v6" /></>,
+  bank: <path d="M3 10 12 4l9 6M5 10v8m4.7-8v8m4.6-8v8M19 10v8M3 20h18" />,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v5m0-8h.01" /></>,
+  alert: <><path d="M12 3 2 20h20z" /><path d="M12 10v4m0 3h.01" /></>,
+  bulb: <><path d="M9 18h6M10 21h4" /><path d="M12 3a6 6 0 0 0-3.5 10.9c.5.4.9 1 1 1.6l.1.5h4.8l.1-.5c.1-.6.5-1.2 1-1.6A6 6 0 0 0 12 3z" /></>,
+  calc: <><rect x="5" y="3" width="14" height="18" rx="2.5" /><path d="M8.5 7h7M9 12h.01M12 12h.01M15 12h.01M9 16h.01M12 16h.01M15 16h.01" /></>,
+};
+const Icon = ({ n, className = "ico" }: { n: keyof typeof P; className?: string }) => (
+  <svg viewBox="0 0 24 24" className={className} aria-hidden>{P[n]}</svg>
+);
+const Logo = () => (
+  <span className="mark"><svg viewBox="0 0 16 16"><path d="M3.5 12V8M8 12V4M12.5 12V9" /></svg></span>
+);
+
+/* ---------------- small components ---------------- */
 function Money({ label, value, onChange, bad }: { label: string; value: number; onChange: (n: number) => void; bad?: string }) {
   return (
     <label className="f">
@@ -37,6 +61,7 @@ const addMonths = (m: number) => {
   return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
 };
 
+/* ---------------- page ---------------- */
 export default function Home() {
   const [inp, setInp] = useState<AnalyzeInput>(EMPTY);
   const [res, setRes] = useState<Res | null>(null);
@@ -44,6 +69,7 @@ export default function Home() {
   const [apiErr, setApiErr] = useState<string | null>(null);
   const [tab, setTab] = useState<"verdict" | "deposits">("verdict");
   const [touched, setTouched] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
 
   // deposit tab state
   const [initial, setInitial] = useState(0);
@@ -51,6 +77,12 @@ export default function Home() {
   const [term, setTerm] = useState(12);
   const [goal, setGoal] = useState(0);
   const depTouched = useRef({ initial: false, monthly: false, goal: false });
+
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 8);
+    on(); window.addEventListener("scroll", on, { passive: true });
+    return () => window.removeEventListener("scroll", on);
+  }, []);
 
   const errors = {
     income: touched && inp.income <= 0 ? "Enter your monthly net income" : "",
@@ -87,6 +119,12 @@ export default function Home() {
     if (!d.goal) setGoal(Math.round(res.guardrail + inp.price));
   }, [res, inp.savings, inp.price]);
 
+  // shareable demo link: /?demo=1 (optionally &tab=deposits)
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    if (q.has("demo")) { setInp(SCENARIO_4); if (q.get("tab") === "deposits") setTab("deposits"); }
+  }, []);
+
   const loadDemo = () => {
     depTouched.current = { initial: false, monthly: false, goal: false };
     setTouched(false); setInp(SCENARIO_4); setTab("verdict");
@@ -95,92 +133,196 @@ export default function Home() {
 
   const dep = useMemo(() => DEPOSITS.map((p) => simulateDeposit(p, initial, monthly, term)), [initial, monthly, term]);
   const best = useMemo(() => dep.filter((d) => d.termOk).sort((a, b) => b.finalBalance - a.finalBalance)[0] ?? null, [dep]);
+  const totalSpend = CATEGORIES.reduce((s, c) => s + inp.expenses[c], 0);
 
   return (
     <>
-      <div className="banner" role="note">
-        <span className="ic">⚠</span>
-        <span><b>Educational decision-support only.</b> Financial Assistant provides analytical simulations and comparisons. It does not access bank accounts, execute transactions, or give licensed financial, investment or credit advice. All deposit products are synthetic reference examples.</span>
+      <div className="notice" role="note">
+        <div className="wrap">
+          <Icon n="info" />
+          <span><b>Educational decision-support only.</b><span className="long"> Not licensed financial advice. No bank access, no transactions.</span></span>
+          <a href="#disclaimer">Learn more</a>
+        </div>
       </div>
 
-      <div className="wrap">
-        <header className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow">Astana IT University · BDA-2402 · Prototype v1.0</div>
-            <h1>Know if a purchase is safe — <em>before</em> you pay.</h1>
-            <p className="sub">Financial Assistant checks whether your budget can absorb a big purchase, explains why, and compares Kazakhstan savings deposits. Under two minutes.</p>
-            <div className="cta">
-              <a className="demo-btn" href="#app" onClick={loadDemo}>▶ Try the demo</a>
-              <a className="demo-btn ghost" href="#how">How it works</a>
-            </div>
-            <ul className="trust"><li>No bank access</li><li>Nothing leaves the prototype</li><li>Explainable verdict</li></ul>
+      <nav className={"nav" + (scrolled ? " scrolled" : "")} aria-label="Main">
+        <div className="wrap">
+          <a className="brand" href="#top"><Logo />Financial Assistant <span className="chip">Beta</span></a>
+          <div className="nav-links">
+            <a href="#how">How it works</a>
+            <a href="#app">Calculator</a>
+            <a href="#app" onClick={() => setTab("deposits")}>Deposits</a>
+            <a href="#disclaimer">Methodology</a>
           </div>
-          <div className="hero-card" aria-hidden>
-            <div className="mini-verdict"><div className="light"><span /><span /><span /></div>
-              <div><small>Verdict</small><b>Amber · Caution</b></div><div className="mini-score"><b>58</b>/100</div></div>
-            <div className="mini-row"><span>Buffer after purchase</span><i><u style={{ width: "46%" }} /></i><b>0.9 mo</b></div>
-            <div className="mini-row"><span>Entertainment vs. peers</span><i><u className="o" style={{ width: "78%" }} /></i><b>+34%</b></div>
-            <div className="mini-row"><span>Best deposit</span><i><u style={{ width: "62%" }} /></i><b>14.7%</b></div>
-          </div>
-        </header>
+          <a className="btn btn-primary btn-sm" href="#app">Open calculator</a>
+        </div>
+      </nav>
 
-        <section className="how" id="how">
-          <div className="step"><span>01</span><h3>Enter your budget</h3><p>Income, spending by category, savings and the price of the purchase.</p></div>
-          <div className="step"><span>02</span><h3>Get a verdict</h3><p>Traffic-light risk, top 3 factors and a comparison with peers.</p></div>
-          <div className="step"><span>03</span><h3>Save smarter</h3><p>Compare deposits and see how much sooner you reach the goal with small cuts.</p></div>
+      <main id="top">
+        {/* ---------- HERO ---------- */}
+        <section className="hero">
+          <div className="wrap">
+            <div>
+              <span className="pill"><span className="dot">v1.0</span>Astana IT University · BDA-2402</span>
+              <h1>Know if a purchase is safe <span>before</span> you pay.</h1>
+              <p className="lede">Financial Assistant stress-tests big purchases against your real budget, explains the verdict in plain language, and finds the Kazakhstan deposit that gets you there faster.</p>
+              <div className="cta">
+                <a className="btn btn-primary btn-lg" href="#app" onClick={loadDemo}><Icon n="play" />Try the live demo</a>
+                <a className="btn btn-secondary btn-lg" href="#how">How it works<Icon n="arrow" /></a>
+              </div>
+              <ul className="trust">
+                <li><Icon n="lock" />No bank connection</li>
+                <li><Icon n="shield" />Nothing is stored</li>
+                <li><Icon n="spark" />Explainable verdicts</li>
+              </ul>
+            </div>
+
+            <div className="preview-wrap" aria-hidden>
+              <div className="preview">
+                <div className="preview-bar"><i /><i /><i /><span>Purchase verdict · Engineering laptop</span></div>
+                <div className="preview-body">
+                  <div className="pv-verdict">
+                    <div className="light"><span /><span /><span /></div>
+                    <div><small>Amber · Caution</small><b>Feasible — Conditional</b></div>
+                    <div className="pv-score"><b>68</b>risk / 100</div>
+                  </div>
+                  <div className="pv-grid">
+                    <div className="pv-tile"><small>Free cash / mo</small><b>+75,000 ₸</b><em className="up">21%</em></div>
+                    <div className="pv-tile"><small>Buffer after</small><b>0.25 mo</b><em className="dn">low</em></div>
+                  </div>
+                  <div className="pv-chart">
+                    <small>Savings with best deposit · 12 mo</small>
+                    <svg viewBox="0 0 300 70" preserveAspectRatio="none">
+                      <defs><linearGradient id="pvg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--brand)" stopOpacity=".28" /><stop offset="1" stopColor="var(--brand)" stopOpacity="0" /></linearGradient></defs>
+                      <path d="M0,62 C40,58 70,52 110,44 S190,26 230,18 S280,8 300,4 L300,70 L0,70Z" fill="url(#pvg)" />
+                      <path d="M0,62 C40,58 70,52 110,44 S190,26 230,18 S280,8 300,4" fill="none" stroke="var(--brand)" strokeWidth="2.5" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+              <div className="float-card"><Icon n="trend" /><div><b>3 weeks sooner</b><small>with a 15% entertainment trim</small></div></div>
+            </div>
+          </div>
         </section>
 
-        <div className="app-head" id="app">
-          <h2>Calculator</h2>
-          {valid ? <button className="demo-btn ghost" onClick={reset}>Clear</button> : <button className="demo-btn" onClick={loadDemo}>▶ Load demo: student, 450,000 ₸ laptop</button>}
-        </div>
+        {/* ---------- METRICS ---------- */}
+        <section className="metrics" aria-label="Key facts">
+          <div className="wrap">
+            <div className="metric"><b>&lt; 2 min</b><span>from numbers to verdict</span></div>
+            <div className="metric"><b>3</b><span>weighted factors explained</span></div>
+            <div className="metric"><b>{DEPOSITS.length}</b><span>KZ deposit products compared</span></div>
+            <div className="metric"><b>0</b><span>bank logins or stored data</span></div>
+          </div>
+        </section>
 
-        <div className="grid">
-          {/* ---------- INPUT ---------- */}
-          <aside className="card stick" aria-label="Budget input">
-            <h2>1 · Your budget</h2>
-            <p className="hint">Monthly amounts in tenge. Nothing leaves this prototype.</p>
-            <Money label="Monthly net income" value={inp.income} onChange={(n) => set("income", n)} bad={errors.income} />
-            <div className="sect"><span>Monthly spending</span><b>{kzt(CATEGORIES.reduce((s, c) => s + inp.expenses[c], 0))}</b></div>
-            <div className="two">
-              {CATEGORIES.map((c) => <Money key={c} label={c} value={inp.expenses[c]} onChange={(n) => setExp(c, n)} />)}
+        {/* ---------- HOW ---------- */}
+        <section className="section" id="how">
+          <div className="wrap">
+            <div className="section-head">
+              <span className="kicker">How it works</span>
+              <h2>From a gut feeling to a decision you can explain.</h2>
+              <p>Three steps, one screen. Every number on the result page traces back to what you entered.</p>
             </div>
-            <div className="sect"><span>Savings & purchase</span></div>
-            <Money label="Current liquid savings" value={inp.savings} onChange={(n) => set("savings", n)} />
-            <label className="f"><span>Planned purchase</span>
-              <div className="inp"><input value={inp.itemName} placeholder="e.g. Engineering laptop" maxLength={60} onChange={(e) => set("itemName", e.target.value)} /></div>
-            </label>
-            <Money label="Purchase price" value={inp.price} onChange={(n) => set("price", n)} bad={errors.price} />
-          </aside>
+            <div className="features">
+              <article className="feature"><span className="step">01</span><div className="fi"><Icon n="wallet" /></div>
+                <h3>Enter your budget</h3><p>Monthly income, spending across eight categories, liquid savings and the price of what you want to buy.</p></article>
+              <article className="feature"><span className="step">02</span><div className="fi"><Icon n="gauge" /></div>
+                <h3>Get an explained verdict</h3><p>A traffic-light risk score, the three factors behind it, and how your spending compares with peers.</p></article>
+              <article className="feature"><span className="step">03</span><div className="fi"><Icon n="bank" /></div>
+                <h3>Save the smart way</h3><p>Compare Kazakhstan deposits by effective rate and see how small cuts move your goal date.</p></article>
+            </div>
+          </div>
+        </section>
 
-          {/* ---------- RESULTS ---------- */}
-          <main>
-            <div className="tabs" role="tablist">
-              <button role="tab" aria-selected={tab === "verdict"} onClick={() => setTab("verdict")}>2 · Purchase verdict</button>
-              <button role="tab" aria-selected={tab === "deposits"} onClick={() => setTab("deposits")}>3 · Deposit comparator</button>
+        {/* ---------- APP ---------- */}
+        <section className="section app-section" id="app">
+          <div className="wrap">
+            <div className="section-head row">
+              <div>
+                <span className="kicker">Calculator</span>
+                <h2>Run your numbers.</h2>
+                <p>Results update as you type. Use the demo to see a full student scenario.</p>
+              </div>
+              {valid
+                ? <button className="btn btn-secondary" onClick={reset}>Clear inputs</button>
+                : <button className="btn btn-primary" onClick={loadDemo}><Icon n="play" />Load demo: student, 450,000 ₸ laptop</button>}
             </div>
 
-            {!res && (
-              <div className="card"><h2>Waiting for your numbers</h2>
-                <p className="hint" style={{ margin: 0 }}>{apiErr ? apiErr : "Enter income and a purchase price, or load the demo scenario to see a full result."}</p></div>
-            )}
+            <div className="grid">
+              <aside className="card stick" aria-label="Budget input">
+                <div className="card-head"><div>
+                  <h2><span className="step-no">1</span>Your budget</h2>
+                  <p className="hint">Monthly amounts in tenge.</p>
+                </div></div>
+                <Money label="Monthly net income" value={inp.income} onChange={(n) => set("income", n)} bad={errors.income} />
+                <div className="sect"><span>Monthly spending</span><b>{kzt(totalSpend)}</b></div>
+                <div className="two">
+                  {CATEGORIES.map((c) => <Money key={c} label={c} value={inp.expenses[c]} onChange={(n) => setExp(c, n)} />)}
+                </div>
+                <div className="sect"><span>Savings & purchase</span></div>
+                <Money label="Current liquid savings" value={inp.savings} onChange={(n) => set("savings", n)} />
+                <label className="f"><span>What are you buying?</span>
+                  <div className="inp"><input value={inp.itemName} placeholder="e.g. Engineering laptop" maxLength={60} onChange={(e) => set("itemName", e.target.value)} /></div>
+                </label>
+                <Money label="Purchase price" value={inp.price} onChange={(n) => set("price", n)} bad={errors.price} />
+              </aside>
 
-            {res && tab === "verdict" && <Verdict res={res} inp={inp} busy={busy} setTrim={(v) => set("trimPct", v)} />}
-            {res && tab === "deposits" && (
-              <Deposits {...{ res, inp, dep, best, initial, monthly, term, goal, busy }}
-                setInitial={(n) => { depTouched.current.initial = true; setInitial(n); }}
-                setMonthly={(n) => { depTouched.current.monthly = true; setMonthly(n); }}
-                setGoal={(n) => { depTouched.current.goal = true; setGoal(n); }}
-                setTerm={setTerm} />
-            )}
-          </main>
+              <div>
+                <div className="tabs" role="tablist">
+                  <button role="tab" aria-selected={tab === "verdict"} onClick={() => setTab("verdict")}><Icon n="gauge" />Purchase verdict</button>
+                  <button role="tab" aria-selected={tab === "deposits"} onClick={() => setTab("deposits")}><Icon n="bank" />Deposit comparator</button>
+                </div>
+
+                {!res && (
+                  <div className={"card empty" + (apiErr ? " error" : "")}>
+                    <div className="ei"><Icon n={apiErr ? "alert" : "calc"} /></div>
+                    <h2>{apiErr ? "Something went wrong" : "Waiting for your numbers"}</h2>
+                    <p>{apiErr ?? "Enter your income and a purchase price on the left, or load the demo to see a complete result."}</p>
+                    {!apiErr && <button className="btn btn-secondary btn-sm" onClick={loadDemo}><Icon n="play" />Load demo</button>}
+                  </div>
+                )}
+
+                {res && tab === "verdict" && <Verdict res={res} inp={inp} busy={busy} setTrim={(v) => set("trimPct", v)} />}
+                {res && tab === "deposits" && (
+                  <Deposits {...{ res, inp, dep, best, initial, monthly, term, goal, busy }}
+                    setInitial={(n) => { depTouched.current.initial = true; setInitial(n); }}
+                    setMonthly={(n) => { depTouched.current.monthly = true; setMonthly(n); }}
+                    setGoal={(n) => { depTouched.current.goal = true; setGoal(n); }}
+                    setTerm={setTerm} />
+                )}
+              </div>
+            </div>
+
+            <div className="disclaimer" id="disclaimer">
+              <div className="di"><Icon n="info" /></div>
+              <div>
+                <h3>Educational decision-support only</h3>
+                <p>Financial Assistant provides analytical simulations and comparisons. It does not access bank accounts, execute transactions, or give licensed financial, investment or credit advice. Verdicts use deterministic disposable-income guardrails followed by a weighted factor model (a stand-in for the Random Forest in the FastAPI backend). All deposit products are synthetic reference examples and figures are illustrative.</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <footer className="footer">
+        <div className="wrap">
+          <div className="footer-top">
+            <div>
+              <a className="brand" href="#top"><Logo />Financial Assistant</a>
+              <p>Explainable purchase decisions and savings planning for students and young professionals in Kazakhstan.</p>
+            </div>
+            <div><h4>Product</h4><ul><li><a href="#how">How it works</a></li><li><a href="#app">Calculator</a></li><li><a href="#app" onClick={() => setTab("deposits")}>Deposit comparator</a></li></ul></div>
+            <div><h4>Methodology</h4><ul><li>1-month liquidity guardrail</li><li>Weighted factor model</li><li>Monthly-compounded EAR</li></ul></div>
+            <div><h4>Project</h4><ul><li>Astana IT University</li><li>Group BDA-2402</li><li>Prototype v1.0</li></ul></div>
+          </div>
+          <div className="footer-bottom"><span>© 2026 Financial Assistant · Educational prototype</span><span>Not financial advice</span></div>
         </div>
-        <p className="foot">Prototype built from the Part 2 project report. Verdict logic: deterministic disposable-income guardrails followed by a weighted factor model (stand-in for the Random Forest in the FastAPI backend). Figures are illustrative.</p>
-      </div>
+      </footer>
     </>
   );
 }
 
+/* ---------------- verdict tab ---------------- */
 function Verdict({ res, inp, busy, setTrim }: { res: Res; inp: AnalyzeInput; busy: boolean; setTrim: (v: number) => void }) {
   const need = res.guardrail;
   const scale = Math.max(inp.savings, need * 1.2, 1);
@@ -190,14 +332,15 @@ function Verdict({ res, inp, busy, setTrim }: { res: Res; inp: AnalyzeInput; bus
   const ent = inp.expenses.Entertainment;
   return (
     <div className={busy ? "loading" : ""}>
-      <p className="meta">API latency {res.latencyMs} ms</p>
+      <p className="meta">Analyzed in {res.latencyMs} ms</p>
       <div className={`verdict ${res.verdict}`} role="status">
         <div className="light" aria-hidden><span /><span /><span /></div>
         <div className="v-main">
           <div className="badge">{res.verdict === "safe" ? "Green · Safe" : res.verdict === "caution" ? "Amber · Caution" : "Red · High risk"}</div>
           <h3>{res.verdictLabel}</h3>
         </div>
-        <div className="score"><b>{res.riskScore}</b>/100<small>risk score</small></div>
+        <div className="score"><b>{res.riskScore}</b>/100<small>risk score</small>
+          <div className="meter" aria-hidden><i style={{ left: `${res.riskScore}%` }} /></div></div>
       </div>
 
       <div className="stats">
@@ -207,39 +350,41 @@ function Verdict({ res, inp, busy, setTrim }: { res: Res; inp: AnalyzeInput; bus
         <div className={"stat " + (res.bufferMonthsAfter < 1 ? "neg" : "pos")}><small>Buffer after purchase</small><b>{res.bufferMonthsAfter.toFixed(2)} mo</b></div>
       </div>
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <h2>Post-purchase liquidity buffer</h2>
-        <p className="hint">Bar shows savings after paying cash; the line is the 1-month safety guardrail ({kzt(need)}).</p>
+      <div className="card">
+        <h3 className="t">Post-purchase liquidity buffer</h3>
+        <p className="hint">Savings left after paying cash, against the 1-month safety guardrail of {kzt(need)}.</p>
         <div className="buf">
           <div className="track"><div className="fill" style={{ width: pct(Math.max(0, res.postSavings)), background: fillColor }} /><div className="mark" style={{ left: pct(need) }} /></div>
-          <div className="lbl"><span>0</span><span>Now {kzt(inp.savings)}</span></div>
-        </div>
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <h2>Top 3 factors behind the verdict</h2>
-        <p className="hint">Plain-language drivers, with model weights.</p>
-        {res.factors.map((f, i) => (
-          <div className="factor" key={i}>
-            <div className="n">{i + 1}</div>
-            <div><h4>{f.title} <span className="w">· {f.weight}% weight</span></h4><p>{f.text}</p></div>
-          </div>
-        ))}
-      </div>
-
-      <div className="card" style={{ marginBottom: 14 }}>
-        <div className="rec"><span className="eyebrow">Suggested action</span>{res.recommendation}</div>
-        <div className="sect" style={{ marginTop: 16 }}><span>What-if: trim Entertainment</span></div>
-        <div className="whatif">
-          <input type="range" min={0} max={0.5} step={0.05} value={inp.trimPct} onChange={(e) => setTrim(Number(e.target.value))} aria-label="Entertainment trim percent" />
-          <output>{Math.round(inp.trimPct * 100)}%</output>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}>= {kzt(Math.round(ent * inp.trimPct))}/mo extra saved</span>
+          <div className="lbl"><span>0 ₸</span><span>Savings today {kzt(inp.savings)}</span></div>
         </div>
       </div>
 
       <div className="card">
-        <h2>Spending vs. peer median</h2>
-        <p className="hint">Share of your income by category. Orange = more than 15% above peers.</p>
+        <div className="card-head"><div><h3 className="t">Why this verdict</h3><p className="hint">The three biggest drivers, with their model weights.</p></div></div>
+        {res.factors.map((f, i) => (
+          <div className="factor" key={i}>
+            <div className="n">{i + 1}</div>
+            <div>
+              <h4>{f.title}<span className="w">{f.weight}%</span></h4>
+              <p>{f.text}</p>
+              <div className="wbar"><i style={{ width: `${f.weight}%` }} /></div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="card">
+        <div className="rec"><Icon n="bulb" /><div><b className="k">Suggested action</b>{res.recommendation}</div></div>
+        <div className="sect"><span>What-if: trim Entertainment</span></div>
+        <div className="whatif">
+          <input type="range" min={0} max={0.5} step={0.05} value={inp.trimPct} onChange={(e) => setTrim(Number(e.target.value))} aria-label="Entertainment trim percent" />
+          <output>{Math.round(inp.trimPct * 100)}%</output>
+          <span className="note">= {kzt(Math.round(ent * inp.trimPct))}/mo extra saved</span>
+        </div>
+      </div>
+
+      <div className="card">
+        <div className="card-head"><div><h3 className="t">Spending vs. peer median</h3><p className="hint">Share of income by category. Highlighted when more than 15% above peers.</p></div></div>
         <div className="bars">
           {res.breakdown.map((b) => (
             <div className="row" key={b.category}>
@@ -251,13 +396,14 @@ function Verdict({ res, inp, busy, setTrim }: { res: Res; inp: AnalyzeInput; bus
         </div>
         <div className="legend"><span>Your share</span><span className="o">Above peers</span><span className="k">Peer median</span></div>
         {res.anomalies.map((a) => (
-          <div className="alert" key={a.category}><b>Anomaly:</b> {a.category} is {a.pctAbove}% above the peer median ({kzt(a.peer)}).</div>
+          <div className="alert" key={a.category}><Icon n="alert" /><span><b>{a.category}</b> is {a.pctAbove}% above the peer median ({kzt(a.peer)}).</span></div>
         ))}
       </div>
     </div>
   );
 }
 
+/* ---------------- deposits tab ---------------- */
 function Deposits(p: {
   res: Res; inp: AnalyzeInput; dep: ReturnType<typeof simulateDeposit>[]; best: ReturnType<typeof simulateDeposit> | null;
   initial: number; monthly: number; term: number; goal: number; busy: boolean;
@@ -272,38 +418,38 @@ function Deposits(p: {
   const saved = mBase !== null && mTrim !== null ? mBase - mTrim : null;
 
   // balance-growth chart for the best product
-  const W = 560, H = 180, pad = 8;
+  const W = 560, H = 200, padL = 8, padR = 8, padT = 10, padB = 22;
   const s = best?.series ?? [];
   const contrib = s.map((_, i) => initial + monthly * i);
   const max = Math.max(...s, 1), min = Math.min(...contrib, 0);
-  const x = (i: number) => pad + (i / Math.max(1, s.length - 1)) * (W - pad * 2);
-  const y = (v: number) => H - pad - ((v - min) / (max - min || 1)) * (H - pad * 2);
+  const x = (i: number) => padL + (i / Math.max(1, s.length - 1)) * (W - padL - padR);
+  const y = (v: number) => H - padB - ((v - min) / (max - min || 1)) * (H - padT - padB);
   const line = (a: number[]) => a.map((v, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join("");
 
   return (
     <div className={p.busy ? "loading" : ""}>
-      <div className="card" style={{ marginBottom: 14 }}>
-        <h2>Deposit plan</h2>
-        <p className="hint">Defaults come from your purchase plan. Monthly compounding, top-ups at month end.</p>
+      <div className="card">
+        <div className="card-head"><div><h3 className="t">Deposit plan</h3><p className="hint">Prefilled from your purchase plan. Monthly compounding, top-ups at month end.</p></div></div>
         <div className="two">
           <Money label="Initial deposit" value={initial} onChange={p.setInitial} />
           <Money label="Monthly top-up" value={monthly} onChange={p.setMonthly} />
         </div>
-        <label className="f"><span>Term: {term} months</span>
-          <input type="range" min={3} max={36} step={1} value={term} style={{ width: "100%", accentColor: "var(--teal)" }} onChange={(e) => p.setTerm(Number(e.target.value))} />
+        <label className="f"><span>Term · <b className="num">{term} months</b></span>
+          <input type="range" min={3} max={36} step={1} value={term} onChange={(e) => p.setTerm(Number(e.target.value))} />
         </label>
       </div>
 
-      <div className="card" style={{ marginBottom: 14 }}>
-        <h2>Kazakhstan deposit comparison</h2>
-        <p className="hint">Synthetic reference catalog, sorted by final balance. “Effective rate” is the annual rate after monthly compounding (GESV-style).</p>
+      <div className="card">
+        <div className="card-head"><div><h3 className="t">Kazakhstan deposit comparison</h3><p className="hint">Synthetic reference catalog, sorted by final balance. Effective rate is the annual rate after monthly compounding (GESV-style).</p></div></div>
         <div className="tw"><table>
           <thead><tr><th>Product</th><th className="r">Nominal</th><th className="r">Effective</th><th className="r">Interest 3 mo</th><th className="r">Interest {term} mo</th><th className="r">Final balance</th></tr></thead>
           <tbody>
             {[...dep].sort((a, b) => b.finalBalance - a.finalBalance).map((d) => (
               <tr key={d.product.id} className={(best?.product.id === d.product.id ? "best " : "") + (d.termOk ? "" : "dim")}>
-                <td>{d.product.id}. {d.product.name}{best?.product.id === d.product.id && <span className="pill-best">BEST</span>}<br />
-                  <span className="tag">{d.product.access}</span>{" "}{!d.termOk && <span className="tag warn">min {d.product.minTerm} mo</span>}</td>
+                <td>
+                  <div className="pname"><span className="id">{d.product.id}</span>{d.product.name}{best?.product.id === d.product.id && <span className="pill-best">BEST</span>}</div>
+                  <div className="tags"><span className="tag">{d.product.access}</span>{!d.termOk && <span className="tag warn">min {d.product.minTerm} mo</span>}</div>
+                </td>
                 <td className="r">{(d.product.nominal * 100).toFixed(1)}%</td>
                 <td className="r">{(d.ear * 100).toFixed(1)}%</td>
                 <td className="r">{kzt(d.interest3)}</td>
@@ -316,27 +462,30 @@ function Deposits(p: {
       </div>
 
       {best && (
-        <div className="card" style={{ marginBottom: 14 }}>
-          <h2>Growth with {best.product.name}</h2>
-          <p className="hint">Teal: balance. Grey: your own contributions only. Interest earned: <b>{kzt(best.interest)}</b>.</p>
-          <svg viewBox={`0 0 ${W} ${H}`} width="100%" role="img" aria-label="Deposit balance growth chart">
-            <path d={line(contrib)} fill="none" stroke="#94a3b8" strokeWidth="2" strokeDasharray="5 4" />
-            <path d={`${line(s)}L${x(s.length - 1)},${H - pad}L${x(0)},${H - pad}Z`} fill="rgba(15,118,110,.12)" />
-            <path d={line(s)} fill="none" stroke="#0f766e" strokeWidth="2.5" />
+        <div className="card">
+          <div className="card-head"><div><h3 className="t">Growth with {best.product.name}</h3><p className="hint">Interest earned over {term} months: <b>{kzt(best.interest)}</b></p></div></div>
+          <svg className="chart" viewBox={`0 0 ${W} ${H}`} role="img" aria-label="Deposit balance growth chart">
+            <defs><linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="var(--brand)" stopOpacity=".22" /><stop offset="1" stopColor="var(--brand)" stopOpacity="0" /></linearGradient></defs>
+            {[0, 0.5, 1].map((f) => <line key={f} className="grid-l" x1={padL} x2={W - padR} y1={padT + f * (H - padT - padB)} y2={padT + f * (H - padT - padB)} />)}
+            <path className="c-area" d={`${line(s)}L${x(s.length - 1)},${H - padB}L${x(0)},${H - padB}Z`} />
+            <path className="c-contrib" d={line(contrib)} />
+            <path className="c-line" d={line(s)} />
+            <text x={padL} y={H - 5}>Month 0</text>
+            <text x={W - padR} y={H - 5} textAnchor="end">Month {term}</text>
           </svg>
+          <div className="chart-legend"><span>Balance</span><span className="m">Your contributions</span></div>
         </div>
       )}
 
       <div className="card">
-        <h2>Goal completion</h2>
-        <p className="hint">Time to reach the savings needed for the purchase plus a 1-month buffer, using {best ? best.product.name : "the best deposit"}.</p>
+        <div className="card-head"><div><h3 className="t">Goal completion</h3><p className="hint">Time to save the purchase price plus a 1-month buffer, using {best ? best.product.name : "the best deposit"}.</p></div></div>
         <Money label="Goal amount" value={goal} onChange={p.setGoal} />
         <div className="goal">
-          <div className="stat"><small>Saving {kzt(base)}/mo</small><b><Months m={mBase} /></b>{mBase !== null && mBase > 0 && <small>≈ {addMonths(mBase)}</small>}</div>
-          <div className="stat"><small>+ {Math.round(inp.trimPct * 100)}% Entertainment trim ({kzt(base + trimAmt)}/mo)</small><b><Months m={mTrim} /></b>{mTrim !== null && mTrim > 0 && <small>≈ {addMonths(mTrim)}</small>}</div>
+          <div className="stat"><small>Saving {kzt(base)}/mo</small><b><Months m={mBase} /></b>{mBase !== null && mBase > 0 && <span className="sub2">≈ {addMonths(mBase)}</span>}</div>
+          <div className="stat hl"><small>+ {Math.round(inp.trimPct * 100)}% Entertainment trim ({kzt(base + trimAmt)}/mo)</small><b><Months m={mTrim} /></b>{mTrim !== null && mTrim > 0 && <span className="sub2">≈ {addMonths(mTrim)}</span>}</div>
         </div>
         {saved !== null && saved > 0.05 && (
-          <div className="rec" style={{ marginTop: 12 }}>Trimming Entertainment by {Math.round(inp.trimPct * 100)}% gets you there about <b>{saved >= 1 ? `${saved.toFixed(1)} months` : `${Math.max(1, Math.round(saved * 4.35))} week${Math.round(saved * 4.35) > 1 ? "s" : ""}`}</b> sooner.</div>
+          <div className="rec" style={{ marginTop: 14 }}><Icon n="trend" /><div>Trimming Entertainment by {Math.round(inp.trimPct * 100)}% gets you there about <b>{saved >= 1 ? `${saved.toFixed(1)} months` : `${Math.max(1, Math.round(saved * 4.35))} week${Math.round(saved * 4.35) > 1 ? "s" : ""}`}</b> sooner.</div></div>
         )}
       </div>
     </div>
