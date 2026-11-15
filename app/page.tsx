@@ -104,13 +104,36 @@ export default function Home() {
       </div>
 
       <div className="wrap">
-        <header className="top">
-          <div className="eyebrow">Astana IT University · BDA-2402 · Prototype v1.0</div>
-          <h1>Financial Assistant</h1>
-          <p className="sub">Check whether a planned purchase is safe for your budget, see why, and compare Kazakhstan savings deposits — in under two minutes.</p>
-          <button className="demo-btn" onClick={loadDemo}>▶ Load demo: student, 450,000 ₸ laptop</button>{" "}
-          {valid && <button className="demo-btn ghost" onClick={reset}>Clear</button>}
+        <header className="hero">
+          <div className="hero-copy">
+            <div className="eyebrow">Astana IT University · BDA-2402 · Prototype v1.0</div>
+            <h1>Know if a purchase is safe — <em>before</em> you pay.</h1>
+            <p className="sub">Financial Assistant checks whether your budget can absorb a big purchase, explains why, and compares Kazakhstan savings deposits. Under two minutes.</p>
+            <div className="cta">
+              <a className="demo-btn" href="#app" onClick={loadDemo}>▶ Try the demo</a>
+              <a className="demo-btn ghost" href="#how">How it works</a>
+            </div>
+            <ul className="trust"><li>No bank access</li><li>Nothing leaves the prototype</li><li>Explainable verdict</li></ul>
+          </div>
+          <div className="hero-card" aria-hidden>
+            <div className="mini-verdict"><div className="light"><span /><span /><span /></div>
+              <div><small>Verdict</small><b>Amber · Caution</b></div><div className="mini-score"><b>58</b>/100</div></div>
+            <div className="mini-row"><span>Buffer after purchase</span><i><u style={{ width: "46%" }} /></i><b>0.9 mo</b></div>
+            <div className="mini-row"><span>Entertainment vs. peers</span><i><u className="o" style={{ width: "78%" }} /></i><b>+34%</b></div>
+            <div className="mini-row"><span>Best deposit</span><i><u style={{ width: "62%" }} /></i><b>14.7%</b></div>
+          </div>
         </header>
+
+        <section className="how" id="how">
+          <div className="step"><span>01</span><h3>Enter your budget</h3><p>Income, spending by category, savings and the price of the purchase.</p></div>
+          <div className="step"><span>02</span><h3>Get a verdict</h3><p>Traffic-light risk, top 3 factors and a comparison with peers.</p></div>
+          <div className="step"><span>03</span><h3>Save smarter</h3><p>Compare deposits and see how much sooner you reach the goal with small cuts.</p></div>
+        </section>
+
+        <div className="app-head" id="app">
+          <h2>Calculator</h2>
+          {valid ? <button className="demo-btn ghost" onClick={reset}>Clear</button> : <button className="demo-btn" onClick={loadDemo}>▶ Load demo: student, 450,000 ₸ laptop</button>}
+        </div>
 
         <div className="grid">
           {/* ---------- INPUT ---------- */}
